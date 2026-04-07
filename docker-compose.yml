@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: analyzer-api
+    environment:
+      PORT: "5000"
+      CORS_ORIGIN: "http://localhost:3000"
+    ports:
+      - "5000:5000"
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: analyzer-web
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
