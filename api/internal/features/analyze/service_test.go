@@ -1,4 +1,5 @@
 package analyze
+
 import (
 	"errors"
 	"testing"
@@ -6,6 +7,12 @@ import (
 func TestAnalyzeURL_EmptyURL_ReturnsReachableError(t *testing.T) {
 	_, err := analyzeURL("")
 	if !errors.Is(err, errURLNotReachable) {
+		t.Fatalf("expected errURLNotReachable, got %v", err)
+	}
+}
+func TestAnalyzeURL_ReachableURL_ReturnsAnalysis (t *testing.T) {
+	_, err := analyzeURL("https://www.google.com")
+	if errors.Is(err, errURLNotReachable) {
 		t.Fatalf("expected errURLNotReachable, got %v", err)
 	}
 }
