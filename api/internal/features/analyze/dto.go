@@ -9,7 +9,8 @@ type headingCount struct {
 	Count int    `json:"count"`
 }
 
-type analysisResult struct {
+
+type analysisPayload struct {
 	HTMLVersion       string         `json:"htmlVersion"`
 	PageTitle         string         `json:"pageTitle"`
 	Headings          []headingCount `json:"headings"`
@@ -17,6 +18,12 @@ type analysisResult struct {
 	ExternalLinks     int            `json:"externalLinks"`
 	InaccessibleLinks int            `json:"inaccessibleLinks"`
 	HasLoginForm      bool           `json:"hasLoginForm"`
+}
+
+type analysisResult struct {
+	StatusCode int             `json:"statusCode"`
+	Message    string          `json:"message"`
+	Body       analysisPayload `json:"body"`
 }
 
 type errorResponse struct {

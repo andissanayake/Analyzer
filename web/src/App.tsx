@@ -7,7 +7,7 @@ type HeadingCount = {
   count: number;
 };
 
-type AnalysisResult = {
+type AnalysisPayload = {
   htmlVersion: string;
   pageTitle: string;
   headings: HeadingCount[];
@@ -17,6 +17,12 @@ type AnalysisResult = {
   hasLoginForm: boolean;
 };
 
+type AnalysisResult = {
+  statusCode: number;
+  message: string;
+  body: AnalysisPayload;
+};
+
 type ErrorResponse = {
   statusCode: number;
   message: string;
@@ -24,7 +30,7 @@ type ErrorResponse = {
 
 function App() {
   const [url, setURL] = useState("");
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [result, setResult] = useState<AnalysisPayload | null>(null);
   const [error, setError] = useState<ErrorResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +57,7 @@ function App() {
       }
 
       const data = (await response.json()) as AnalysisResult;
-      setResult(data);
+      setResult(data.body);
     } catch {
       setError({
         statusCode: 0,
