@@ -1,0 +1,35 @@
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: Arial, sans-serif;
+}
+
+.analyze-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.analyze-form input {
+  padding: 0.6rem;
+}
+
+.analyze-form button {
+  width: fit-content;
+  padding: 0.6rem 1rem;
+}
+
+.error-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #c62828;
+  background: #fdecea;
+}
+
+.result-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #2e7d32;
+  background: #edf7ed;
+}
