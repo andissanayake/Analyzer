@@ -20,18 +20,20 @@ type AnalysisPayload = {
 type AnalysisResult = {
   statusCode: number;
   message: string;
-  body: AnalysisPayload;
+  body?: AnalysisPayload;
 };
 
-type ErrorResponse = {
-  statusCode: number;
-  message: string;
-};
+/** Outcome code inside the JSON body (the API uses HTTP 200 when the envelope is returned successfully). */
+const ANALYSIS_OK = 200;
 
 function App() {
   const [url, setURL] = useState("");
   const [result, setResult] = useState<AnalysisPayload | null>(null);
-  const [error, setError] = useState<ErrorResponse | null>(null);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    statusCode: number;
+    message: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -39,6 +41,7 @@ function App() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setResultMessage(null);
 
     try {
       const response = await fetch("http://localhost:5000/analyze", {
@@ -47,17 +50,38 @@ function App() {
         body: JSON.stringify({ url }),
       });
 
-      if (!response.ok) {
-        const apiError = (await response.json()) as ErrorResponse;
+      let raw: unknown;
+      try {
+        raw = await response.json();
+      } catch {
         setError({
-          statusCode: apiError.statusCode ?? response.status,
-          message: apiError.message ?? "Unknown error",
+          statusCode: 0,
+          message: response.ok
+            ? "Server returned invalid JSON."
+            : `Server error (HTTP ${response.status}).`,
         });
         return;
       }
 
-      const data = (await response.json()) as AnalysisResult;
+      const data = raw as AnalysisResult;
+      if (typeof data.statusCode !== "number") {
+        setError({
+          statusCode: 0,
+          message: "Response missing application status code.",
+        });
+        return;
+      }
+
+      if (data.statusCode !== ANALYSIS_OK || data.body == null) {
+        setError({
+          statusCode: data.statusCode,
+          message: data.message || "Unknown error",
+        });
+        return;
+      }
+
       setResult(data.body);
+      setResultMessage(data.message || null);
     } catch {
       setError({
         statusCode: 0,
@@ -89,9 +113,9 @@ function App() {
 
       {error && (
         <section className="error-box">
-          <h2>Error</h2>
+          <h2>Analysis error</h2>
           <p>
-            HTTP {error.statusCode}: {error.message}
+            Code {error.statusCode}: {error.message}
           </p>
         </section>
       )}
@@ -99,6 +123,9 @@ function App() {
       {result && (
         <section className="result-box">
           <h2>Results</h2>
+          {resultMessage ? (
+            <p className="result-summary">{resultMessage}</p>
+          ) : null}
           <p>HTML version: {result.htmlVersion}</p>
           <p>Page title: {result.pageTitle}</p>
           <p>Internal links: {result.internalLinks}</p>

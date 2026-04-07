@@ -21,12 +21,7 @@ type analysisPayload struct {
 }
 
 type analysisResult struct {
-	StatusCode int             `json:"statusCode"`
-	Message    string          `json:"message"`
-	Body       analysisPayload `json:"body"`
-}
-
-type errorResponse struct {
-	StatusCode int    `json:"statusCode"`
-	Message    string `json:"message"`
+	StatusCode int               `json:"statusCode"`
+	Message    string            `json:"message"`
+	Body       *analysisPayload `json:"body,omitempty"`
 }

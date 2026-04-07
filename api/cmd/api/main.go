@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"analyzer/api/internal/features/analyze"
 	"analyzer/api/internal/features/health"
@@ -15,7 +16,10 @@ func main() {
 
 	mux := http.NewServeMux()
 	health.Register(mux)
-	analyze.Register(mux)
+
+	httpClient := analyze.NewLiveHTTPClient(&http.Client{Timeout: 15 * time.Second})
+	analyzeService := analyze.NewService(httpClient)
+	analyze.Register(mux, analyzeService)
 
 	addr := ":" + cfg.Port
 	log.Printf("api listening on http://localhost%s", addr)

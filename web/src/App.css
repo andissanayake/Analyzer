@@ -27,6 +27,12 @@
   background: #fdecea;
 }
 
+.result-summary {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  color: #1b5e20;
+}
+
 .result-box {
   margin-top: 1rem;
   padding: 1rem;
