@@ -21,6 +21,8 @@ func ParseHTML(pageURL *url.URL, body io.Reader) (analysisPayload, error) {
 
 func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) {
 	payload := analysisPayload{
+		HTMLVersion: "",
+		PageTitle:   "",
 		InternalLinks:     0,
 		ExternalLinks:     0,
 		InaccessibleLinks: 0,
@@ -34,18 +36,18 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 			{Level: "h6", Count: 0},
 		},
 	}
-	for c := doc.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.DoctypeNode {
-			payload.HTMLVersion = htmlVersionFromDoctype(c.Data)
-			break
-		}
-	}
-	if payload.HTMLVersion == "" {
-		payload.HTMLVersion = "HTML5"
-	}
 
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
+		if node.Type == html.DoctypeNode && payload.HTMLVersion == "" {
+			doctypeData := node.Data
+			for _, a := range node.Attr {
+				if a.Val != "" {
+					doctypeData += " " + a.Val
+				}
+			}
+			payload.HTMLVersion = htmlVersionFromDoctype(doctypeData)
+		}
 		if node.Type == html.ElementNode {
 			switch node.Data {
 			case "title":
@@ -53,9 +55,15 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 					payload.PageTitle = t
 				}
 			case "a":
-				payload.InternalLinks++
-			case "img":
-				payload.InaccessibleLinks++
+				isInternal, isExternal, isInaccessible := classifyAnchorLink(pageURL, node)
+				switch {
+				case isInternal:
+					payload.InternalLinks++
+				case isExternal:
+					payload.ExternalLinks++
+				case isInaccessible:
+					payload.InaccessibleLinks++
+				}
 			case "form":
 				payload.HasLoginForm = true
 			case "input":
@@ -77,6 +85,9 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 		}
 	}
 	walk(doc)
+	if payload.HTMLVersion == "" {
+		payload.HTMLVersion = "HTML5"
+	}
 	return payload, nil
 }
 
@@ -112,4 +123,35 @@ func htmlVersionFromDoctype(data string) string {
 		}
 		return ""
 	}
+}
+
+func classifyAnchorLink(pageURL *url.URL, node *html.Node) (bool, bool, bool) {
+	href := strings.TrimSpace(attrValue(node, "href"))
+	if href == "" {
+		return false, false, true
+	}
+	parsedHref, err := url.Parse(href)
+	if err != nil {
+		return false, false, true
+	}
+	absolute := pageURL.ResolveReference(parsedHref)
+	if absolute == nil {
+		return false, false, true
+	}
+	if absolute.Scheme != "http" && absolute.Scheme != "https" {
+		return false, false, true
+	}
+	if strings.EqualFold(pageURL.Hostname(), absolute.Hostname()) {
+		return true, false, false
+	}
+	return false, true, false
+}
+
+func attrValue(node *html.Node, key string) string {
+	for _, a := range node.Attr {
+		if a.Key == key {
+			return a.Val
+		}
+	}
+	return ""
 }
