@@ -9,7 +9,6 @@ type headingCount struct {
 	Count int    `json:"count"`
 }
 
-
 type analysisPayload struct {
 	HTMLVersion       string         `json:"htmlVersion"`
 	PageTitle         string         `json:"pageTitle"`
@@ -21,7 +20,7 @@ type analysisPayload struct {
 }
 
 type analysisResult struct {
-	StatusCode int               `json:"statusCode"`
-	Message    string            `json:"message"`
+	StatusCode int              `json:"statusCode"`
+	Message    string           `json:"message"`
 	Body       *analysisPayload `json:"body,omitempty"`
 }

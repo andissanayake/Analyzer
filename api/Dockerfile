@@ -1,6 +1,8 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
+
+ENV GOTOOLCHAIN=auto
 
 COPY . .
 

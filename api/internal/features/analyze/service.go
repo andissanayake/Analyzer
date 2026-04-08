@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 type Service interface {
@@ -22,15 +23,23 @@ func NewService(client HTTPClient) Service {
 	return &service{client: client}
 }
 
-func (s *service) Analyze(ctx context.Context, url string) analysisResult {
-	if url == "" {
+func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
+	if rawURL == "" {
 		return analysisResult{
 			StatusCode: http.StatusBadRequest,
 			Message:    "A URL is required.",
 		}
 	}
 
-	resp, err := s.client.Get(ctx, url)
+	pageURL, err := url.Parse(rawURL)
+	if err != nil || pageURL.Scheme == "" || pageURL.Host == "" {
+		return analysisResult{
+			StatusCode: http.StatusBadRequest,
+			Message:    "The URL is not valid.",
+		}
+	}
+
+	resp, err := s.client.Get(ctx, rawURL)
 	if err != nil {
 		return analysisResult{
 			StatusCode: http.StatusBadGateway,
@@ -38,42 +47,32 @@ func (s *service) Analyze(ctx context.Context, url string) analysisResult {
 		}
 	}
 	if resp.Body != nil {
-		defer resp.Body.Close()
+		defer func() {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}()
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		if resp.Body != nil {
-			_, _ = io.Copy(io.Discard, resp.Body)
-		}
 		return analysisResult{
 			StatusCode: resp.StatusCode,
 			Message:    nonSuccessHTTPMessage(resp.StatusCode),
 		}
 	}
 
-	if resp.Body != nil {
-		_, _ = io.Copy(io.Discard, resp.Body)
+	limited := io.LimitReader(resp.Body, MaxHTMLBytes)
+	payload, err := ParseHTML(pageURL, limited)
+	if err != nil {
+		return analysisResult{
+			StatusCode: http.StatusBadGateway,
+			Message:    fmt.Sprintf("Could not analyze page content: %v", err),
+		}
 	}
 
 	return analysisResult{
 		StatusCode: http.StatusOK,
 		Message:    "Analysis complete.",
-		Body: &analysisPayload{
-			HTMLVersion: "HTML5",
-			PageTitle:   "Placeholder title",
-			Headings: []headingCount{
-				{Level: "h1", Count: 1},
-				{Level: "h2", Count: 2},
-				{Level: "h3", Count: 0},
-				{Level: "h4", Count: 0},
-				{Level: "h5", Count: 0},
-				{Level: "h6", Count: 0},
-			},
-			InternalLinks:     0,
-			ExternalLinks:     0,
-			InaccessibleLinks: 0,
-			HasLoginForm:      false,
-		},
+		Body:       &payload,
 	}
 }
 
