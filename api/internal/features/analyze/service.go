@@ -22,7 +22,7 @@ func NewService(client HTTPClient) Service {
 	}
 	return &service{client: client}
 }
-
+const MaxHTMLBytes = 20_971_520 // 20MB
 func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
 	if rawURL == "" {
 		return analysisResult{
@@ -60,7 +60,7 @@ func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
 		}
 	}
 
-	limited := io.LimitReader(resp.Body, MaxHTMLBytes)
+	limited := io.LimitReader(io.Reader(resp.Body), MaxHTMLBytes)
 	payload, err := ParseHTML(pageURL, limited)
 	if err != nil {
 		return analysisResult{

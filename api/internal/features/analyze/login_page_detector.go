@@ -42,7 +42,7 @@ type LoginMetadata struct {
 	PageDescription string
 }
 
-func DetectLoginPage(data LoginMetadata) (int, string, error) {
+func DetectLoginPage(data LoginMetadata) (int, string) {
 	score := 0
 	reasons := make([]string, 0, 8)
 
@@ -64,7 +64,7 @@ func DetectLoginPage(data LoginMetadata) (int, string, error) {
 		reasons = append(reasons, "No strong login indicators were detected.")
 	}
 
-	return clampScore(score), strings.Join(reasons, "; "), nil
+	return clampScore(score), strings.Join(reasons, "; ")
 }
 
 var (

@@ -26,10 +26,7 @@ func TestDetectLoginPage_HighScoreLikelyLogin(t *testing.T) {
 		},
 	}
 
-	score, reason, err := DetectLoginPage(data)
-	if err != nil {
-		t.Fatalf("DetectLoginPage returned error: %v", err)
-	}
+	score, reason := DetectLoginPage(data)
 	if score < 70 {
 		t.Fatalf("expected high login score >= 70, got %d", score)
 	}
@@ -54,10 +51,7 @@ func TestDetectLoginPage_MediumScoreAuthRelated(t *testing.T) {
 		},
 	}
 
-	score, reason, err := DetectLoginPage(data)
-	if err != nil {
-		t.Fatalf("DetectLoginPage returned error: %v", err)
-	}
+	score, reason := DetectLoginPage(data)
 	if score < 40 || score > 69 {
 		t.Fatalf("expected medium score in [40,69], got %d", score)
 	}
@@ -84,10 +78,7 @@ func TestDetectLoginPage_LowScoreNonLogin(t *testing.T) {
 		},
 	}
 
-	score, reason, err := DetectLoginPage(data)
-	if err != nil {
-		t.Fatalf("DetectLoginPage returned error: %v", err)
-	}
+	score, reason := DetectLoginPage(data)
 	if score >= 40 {
 		t.Fatalf("expected low non-login score < 40, got %d", score)
 	}

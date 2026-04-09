@@ -9,8 +9,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-const MaxHTMLBytes = 20_971_520 // 2MB
-
 func ParseHTML(pageURL *url.URL, body io.Reader) (analysisPayload, error) {
 	doc, err := html.Parse(body)
 	if err != nil {
@@ -122,10 +120,7 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 	if payload.HTMLVersion == "" {
 		payload.HTMLVersion = "HTML5"
 	}
-	score, reason, err := DetectLoginPage(login);
-	if err != nil {
-		return analysisPayload{}, fmt.Errorf("analyze: could not detect login page: %w", err)
-	}
+	score, reason := DetectLoginPage(login)
 	payload.LoginScore = score
 	payload.LoginReason = reason
 	payload.HasLoginForm = score >= 70
