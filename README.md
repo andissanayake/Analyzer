@@ -40,6 +40,7 @@ Expected endpoints:
 - Web UI: `http://localhost:3000`
 - API: `http://localhost:5000`
 - Health check: `http://localhost:5000/health`
+- pprof (localhost-only): `http://127.0.0.1:6060/debug/pprof/`
 
 Stop:
 
@@ -68,6 +69,11 @@ API:
 cd api
 go run ./cmd/api
 ```
+
+Debug/profiling defaults:
+
+- `PPROF_ENABLED=true`
+- `PPROF_ADDR=127.0.0.1:6060` (separate debug server, not on the public API mux)
 
 Web:
 

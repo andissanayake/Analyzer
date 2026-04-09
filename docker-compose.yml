@@ -7,8 +7,11 @@ services:
     environment:
       PORT: "5000"
       CORS_ORIGIN: "http://localhost:3000"
+      PPROF_ENABLED: "true"
+      PPROF_ADDR: "0.0.0.0:6060"
     ports:
       - "5000:5000"
+      - "127.0.0.1:6060:6060"
 
   web:
     build:

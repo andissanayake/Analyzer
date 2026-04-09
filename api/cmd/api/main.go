@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"time"
 
@@ -26,7 +27,29 @@ func main() {
 	analyze.Register(mux, analyzeService)
 
 	addr := ":" + cfg.Port
-	slog.Info("api starting", "addr", addr, "cors_origin", cfg.CORSOrigin)
+	if cfg.PprofOn {
+		debugMux := http.NewServeMux()
+		debugMux.HandleFunc("/debug/pprof/", pprof.Index)
+		debugMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		debugMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		debugMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		debugMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		debugMux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+		debugMux.Handle("/debug/pprof/block", pprof.Handler("block"))
+		debugMux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		debugMux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		debugMux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+		debugMux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+
+		go func() {
+			slog.Info("pprof debug server starting", "addr", cfg.PprofAddr)
+			if err := http.ListenAndServe(cfg.PprofAddr, debugMux); err != nil {
+				slog.Error("pprof debug server stopped", "error", err)
+			}
+		}()
+	}
+
+	slog.Info("api starting", "addr", addr, "cors_origin", cfg.CORSOrigin, "pprof_enabled", cfg.PprofOn, "pprof_addr", cfg.PprofAddr)
 
 	if err := http.ListenAndServe(addr, httpx.WithCORS(mux, cfg.CORSOrigin)); err != nil {
 		slog.Error("api stopped", "error", err)
