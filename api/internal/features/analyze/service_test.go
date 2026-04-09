@@ -11,10 +11,21 @@ import (
 
 type mockHTTPClient struct {
 	getFunc func(ctx context.Context, url string) (*http.Response, error)
+	headFunc func(ctx context.Context, url string) (*http.Response, error)
 }
 
 func (m *mockHTTPClient) Get(ctx context.Context, url string) (*http.Response, error) {
 	return m.getFunc(ctx, url)
+}
+
+func (m *mockHTTPClient) Head(ctx context.Context, url string) (*http.Response, error) {
+	if m.headFunc == nil {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("")),
+		}, nil
+	}
+	return m.headFunc(ctx, url)
 }
 
 func TestAnalyze_EmptyURL_ReturnsBadRequest(t *testing.T) {

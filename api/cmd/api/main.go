@@ -1,8 +1,9 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"analyzer/api/internal/features/analyze"
@@ -12,6 +13,9 @@ import (
 )
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	cfg := config.Load()
 
 	mux := http.NewServeMux()
@@ -22,9 +26,10 @@ func main() {
 	analyze.Register(mux, analyzeService)
 
 	addr := ":" + cfg.Port
-	log.Printf("api listening on http://localhost%s", addr)
+	slog.Info("api starting", "addr", addr, "cors_origin", cfg.CORSOrigin)
 
 	if err := http.ListenAndServe(addr, httpx.WithCORS(mux, cfg.CORSOrigin)); err != nil {
-		log.Fatal(err)
+		slog.Error("api stopped", "error", err)
+		os.Exit(1)
 	}
 }

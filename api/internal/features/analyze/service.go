@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type Service interface {
@@ -22,9 +24,17 @@ func NewService(client HTTPClient) Service {
 	}
 	return &service{client: client}
 }
-const MaxHTMLBytes = 20_971_520 // 20MB
+const (
+	MaxHTMLBytes           = 20_971_520 // 20MB
+	LinkCheckWorkerCount   = 8
+	LinkCheckTimeoutPerURL = 3 * time.Second
+)
+
 func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
+	slog.Debug("analyze started", "url", rawURL)
+
 	if rawURL == "" {
+		slog.Warn("analyze validation failed", "url", rawURL, "reason", "missing_url")
 		return analysisResult{
 			StatusCode: http.StatusBadRequest,
 			Message:    "A URL is required.",
@@ -33,6 +43,7 @@ func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
 
 	pageURL, err := url.Parse(rawURL)
 	if err != nil || pageURL.Scheme == "" || pageURL.Host == "" {
+		slog.Warn("analyze validation failed", "url", rawURL, "reason", "invalid_url")
 		return analysisResult{
 			StatusCode: http.StatusBadRequest,
 			Message:    "The URL is not valid.",
@@ -41,6 +52,7 @@ func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
 
 	resp, err := s.client.Get(ctx, rawURL)
 	if err != nil {
+		slog.Warn("analyze upstream fetch failed", "url", rawURL, "error", err)
 		return analysisResult{
 			StatusCode: http.StatusBadGateway,
 			Message:    fmt.Sprintf("Could not reach the URL: %v", err),
@@ -54,6 +66,7 @@ func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		slog.Warn("analyze upstream returned non-success", "url", rawURL, "upstream_status", resp.StatusCode)
 		return analysisResult{
 			StatusCode: resp.StatusCode,
 			Message:    nonSuccessHTTPMessage(resp.StatusCode),
@@ -61,14 +74,23 @@ func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
 	}
 
 	limited := io.LimitReader(io.Reader(resp.Body), MaxHTMLBytes)
-	payload, err := ParseHTML(pageURL, limited)
+	payload, linkTargets, err := parseHTMLWithLinks(pageURL, limited)
 	if err != nil {
+		slog.Warn("analyze parse failed", "url", rawURL, "error", err)
 		return analysisResult{
 			StatusCode: http.StatusBadGateway,
 			Message:    fmt.Sprintf("Could not analyze page content: %v", err),
 		}
 	}
+	inaccessibleCount := s.countInaccessibleLinks(ctx, linkTargets)
+	payload.InaccessibleLinks += inaccessibleCount
+	slog.Info("analyze link check summary",
+		"url", rawURL,
+		"checked", len(uniqueHTTPLinks(linkTargets)),
+		"inaccessible", inaccessibleCount,
+	)
 
+	slog.Debug("analyze completed", "url", rawURL)
 	return analysisResult{
 		StatusCode: http.StatusOK,
 		Message:    "Analysis complete.",
