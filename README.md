@@ -14,6 +14,10 @@ The solution has two components:
 - `api`: Go HTTP API (`/health`, `/analyze`)
 - `web`: React + Vite frontend
 
+## Screenshot
+
+![Web Page Analyzer UI](img/app-img.png)
+
 ## Main Build/Run/Deploy Steps
 
 ### 1) Prerequisites
