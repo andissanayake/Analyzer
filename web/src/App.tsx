@@ -15,6 +15,8 @@ type AnalysisPayload = {
   externalLinks: number;
   inaccessibleLinks: number;
   hasLoginForm: boolean;
+  loginScore: number;
+  loginReason: string;
 };
 
 type AnalysisResult = {
@@ -132,6 +134,25 @@ function App() {
           <p>External links: {result.externalLinks}</p>
           <p>Inaccessible links: {result.inaccessibleLinks}</p>
           <p>Contains login form: {result.hasLoginForm ? "Yes" : "No"}</p>
+
+          <div className="login-detection">
+            <h3>Login page detection</h3>
+            <p className="login-score">
+              Score: <strong>{result.loginScore}</strong>
+              <span className="login-score-max"> / 100</span>
+            </p>
+            {result.loginReason ? (
+              <ul className="login-reasons">
+                {result.loginReason
+                  .split(";")
+                  .map((part) => part.trim())
+                  .filter(Boolean)
+                  .map((line, index) => (
+                    <li key={index}>{line}</li>
+                  ))}
+              </ul>
+            ) : null}
+          </div>
 
           <h3>Headings</h3>
           <ul>

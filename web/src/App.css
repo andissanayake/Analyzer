@@ -39,3 +39,32 @@
   border: 1px solid #2e7d32;
   background: #edf7ed;
 }
+
+.login-detection {
+  margin: 1.25rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(46, 125, 50, 0.35);
+}
+
+.login-detection h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.login-score {
+  margin: 0 0 0.5rem;
+}
+
+.login-score-max {
+  font-weight: normal;
+  color: #555;
+}
+
+.login-reasons {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}

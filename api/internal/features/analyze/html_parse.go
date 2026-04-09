@@ -20,13 +20,15 @@ func ParseHTML(pageURL *url.URL, body io.Reader) (analysisPayload, error) {
 }
 
 func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) {
+	var formStack []*FormMetadata
+	login := LoginMetadata{PageUrl: pageURL.String()}
+
 	payload := analysisPayload{
 		HTMLVersion: "",
 		PageTitle:   "",
 		InternalLinks:     0,
 		ExternalLinks:     0,
 		InaccessibleLinks: 0,
-		HasLoginForm:      false,
 		Headings: []headingCount{
 			{Level: "h1", Count: 0},
 			{Level: "h2", Count: 0},
@@ -53,6 +55,18 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 			case "title":
 				if t := strings.TrimSpace(textContent(node)); t != "" {
 					payload.PageTitle = t
+					login.PageTitle = t
+				}
+			case "meta":
+				if strings.EqualFold(strings.TrimSpace(attrValue(node, "name")), "description") {
+					if c := strings.TrimSpace(attrValue(node, "content")); c != "" {
+						login.PageDescription = c
+					}
+				}
+				if strings.EqualFold(strings.TrimSpace(attrValue(node, "property")), "og:description") && login.PageDescription == "" {
+					if c := strings.TrimSpace(attrValue(node, "content")); c != "" {
+						login.PageDescription = c
+					}
 				}
 			case "a":
 				isInternal, isExternal, isInaccessible := classifyAnchorLink(pageURL, node)
@@ -64,14 +78,34 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 				case isInaccessible:
 					payload.InaccessibleLinks++
 				}
+				login.AllLinks = append(login.AllLinks, linkMetadataFromAnchor(node))
 			case "form":
-				payload.HasLoginForm = true
+				fm := &FormMetadata{Action: resolveFormAction(pageURL, node)}
+				formStack = append(formStack, fm)
+				for c := node.FirstChild; c != nil; c = c.NextSibling {
+					walk(c)
+				}
+				login.Forms = append(login.Forms, *formStack[len(formStack)-1])
+				formStack = formStack[:len(formStack)-1]
+				return
 			case "input":
-				for _, a := range node.Attr {
-					if a.Key == "type" && strings.EqualFold(a.Val, "password") {
-						payload.HasLoginForm = true
-						break
+				inputType := strings.ToLower(strings.TrimSpace(attrValue(node, "type")))
+				if inputType == "" {
+					inputType = "text"
+				}
+				if len(formStack) > 0 {
+					cur := formStack[len(formStack)-1]
+					switch inputType {
+					case "submit", "button", "image", "reset":
+						cur.Buttons = append(cur.Buttons, buttonFromSubmitInput(node))
+					default:
+						cur.AllInputs = append(cur.AllInputs, inputMetadataFromNode(node))
 					}
+				}
+			case "button":
+				if len(formStack) > 0 {
+					cur := formStack[len(formStack)-1]
+					cur.Buttons = append(cur.Buttons, buttonElementMetadata(node))
 				}
 			case "h1", "h2", "h3", "h4", "h5", "h6":
 				level := node.Data[1] - '0'
@@ -88,6 +122,13 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 	if payload.HTMLVersion == "" {
 		payload.HTMLVersion = "HTML5"
 	}
+	score, reason, err := DetectLoginPage(login);
+	if err != nil {
+		return analysisPayload{}, fmt.Errorf("analyze: could not detect login page: %w", err)
+	}
+	payload.LoginScore = score
+	payload.LoginReason = reason
+	payload.HasLoginForm = score >= 70
 	return payload, nil
 }
 
@@ -154,4 +195,56 @@ func attrValue(node *html.Node, key string) string {
 		}
 	}
 	return ""
+}
+
+func resolveFormAction(base *url.URL, form *html.Node) string {
+	action := strings.TrimSpace(attrValue(form, "action"))
+	if action == "" || base == nil {
+		return action
+	}
+	u, err := url.Parse(action)
+	if err != nil {
+		return action
+	}
+	abs := base.ResolveReference(u)
+	if abs == nil {
+		return action
+	}
+	return abs.String()
+}
+
+func linkMetadataFromAnchor(n *html.Node) LinkMetadata {
+	return LinkMetadata{
+		Href:      attrValue(n, "href"),
+		Text:      strings.TrimSpace(textContent(n)),
+		Title:     attrValue(n, "title"),
+		AriaLabel: attrValue(n, "aria-label"),
+	}
+}
+
+func inputMetadataFromNode(n *html.Node) InputMetadata {
+	return InputMetadata{
+		Name:         attrValue(n, "name"),
+		ID:           attrValue(n, "id"),
+		Type:         attrValue(n, "type"),
+		Placeholder:  attrValue(n, "placeholder"),
+		Autocomplete: attrValue(n, "autocomplete"),
+		AriaLabel:    attrValue(n, "aria-label"),
+	}
+}
+
+func buttonFromSubmitInput(n *html.Node) ButtonMetadata {
+	return ButtonMetadata{
+		Name:      attrValue(n, "name"),
+		Text:      attrValue(n, "value"),
+		AriaLabel: attrValue(n, "aria-label"),
+	}
+}
+
+func buttonElementMetadata(n *html.Node) ButtonMetadata {
+	return ButtonMetadata{
+		Name:      attrValue(n, "name"),
+		Text:      strings.TrimSpace(textContent(n)),
+		AriaLabel: attrValue(n, "aria-label"),
+	}
 }

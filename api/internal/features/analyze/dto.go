@@ -17,6 +17,8 @@ type analysisPayload struct {
 	ExternalLinks     int            `json:"externalLinks"`
 	InaccessibleLinks int            `json:"inaccessibleLinks"`
 	HasLoginForm      bool           `json:"hasLoginForm"`
+	LoginScore        int            `json:"loginScore"`
+	LoginReason       string         `json:"loginReason"`
 }
 
 type analysisResult struct {
