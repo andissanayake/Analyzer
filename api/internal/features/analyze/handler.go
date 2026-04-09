@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"analyzer/api/internal/platform/httpx"
+	"analyzer/api/internal/platform/metrics"
 )
 
 func Register(mux *http.ServeMux, svc Service) {
@@ -27,6 +28,7 @@ func (h *handler) handle(w http.ResponseWriter, r *http.Request) {
 	appStatus := http.StatusOK
 	errorClass := "none"
 	defer func() {
+		metrics.ObserveAnalyzeRequest(appStatus, time.Since(start).Seconds())
 		slog.Info("analyze request",
 			"url", analyzedURL,
 			"duration_ms", time.Since(start).Milliseconds(),

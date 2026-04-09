@@ -11,6 +11,7 @@ import (
 	"analyzer/api/internal/features/health"
 	"analyzer/api/internal/platform/config"
 	"analyzer/api/internal/platform/httpx"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -21,6 +22,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	health.Register(mux)
+	mux.Handle("/metrics", promhttp.Handler())
 
 	httpClient := analyze.NewLiveHTTPClient(&http.Client{Timeout: 15 * time.Second})
 	analyzeService := analyze.NewService(httpClient)

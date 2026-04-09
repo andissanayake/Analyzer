@@ -40,6 +40,7 @@ Expected endpoints:
 - Web UI: `http://localhost:3000`
 - API: `http://localhost:5000`
 - Health check: `http://localhost:5000/health`
+- Prometheus metrics: `http://localhost:5000/metrics`
 - pprof (localhost-only): `http://127.0.0.1:6060/debug/pprof/`
 
 Stop:
@@ -60,6 +61,19 @@ Notes:
 
 - Running `go test ./...` from repository root fails because the Go module is inside `api`.
 - Integration tests include live network calls (for example, real external URLs), so they depend on internet availability and external-site stability.
+
+### 3.1) Metrics (Prometheus)
+
+The API exposes Prometheus metrics on:
+
+- `GET /metrics`
+
+Minimal metric set:
+
+- `analyze_requests_total{status}`: total analyze requests grouped by returned app status code.
+- `analyze_duration_seconds`: analyze request duration histogram.
+- `links_checked_total`: total number of unique HTTP(S) links checked during analysis.
+- `links_inaccessible_total`: total number of links identified as inaccessible.
 
 ### 4) Local non-Docker run (optional)
 

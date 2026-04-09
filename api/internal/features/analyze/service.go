@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"analyzer/api/internal/platform/metrics"
 )
 
 type Service interface {
@@ -24,6 +26,7 @@ func NewService(client HTTPClient) Service {
 	}
 	return &service{client: client}
 }
+
 const (
 	MaxHTMLBytes           = 20_971_520 // 20MB
 	LinkCheckWorkerCount   = 8
@@ -83,10 +86,13 @@ func (s *service) Analyze(ctx context.Context, rawURL string) analysisResult {
 		}
 	}
 	inaccessibleCount := s.countInaccessibleLinks(ctx, linkTargets)
+	checkedCount := len(uniqueHTTPLinks(linkTargets))
+	metrics.AddLinksChecked(checkedCount)
+	metrics.AddLinksInaccessible(inaccessibleCount)
 	payload.InaccessibleLinks += inaccessibleCount
 	slog.Info("analyze link check summary",
 		"url", rawURL,
-		"checked", len(uniqueHTTPLinks(linkTargets)),
+		"checked", checkedCount,
 		"inaccessible", inaccessibleCount,
 	)
 
