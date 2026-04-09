@@ -80,24 +80,24 @@ These are the implementation assumptions/decisions made where requirements were 
 1. **CORS policy**
   - Default `CORS_ORIGIN` is `http://localhost:3000` for local development.
   - This assumes single known frontend origin in dev.
-2. **Network behavior**
-  - API fetches target URLs live with timeout-based HTTP client behavior.
-  - External site reachability/content is treated as dynamic and can affect analysis result quality.
-3. **Server-rendered HTML dependency**
+2. **Server-rendered HTML dependency**
   - Analysis is based on the HTML returned by the HTTP response body.
   - Pages that rely heavily on SPA frameworks or JavaScript DOM manipulation/rendering may not be fully represented in results.
+3. **Link accessibility counting approach**
+  - The analyzer does not open/crawl each discovered link to verify whether it is truly broken.
+  - `InaccessibleLinks` is currently derived from link validation/classification rules (for example empty, malformed, or unsupported `href` values).
 4. **Login page detection strategy**
   - Detection is heuristic and score-based (`loginScore`, `loginReason`), not a strict classifier.
   - A threshold-like interpretation is used by tests (high score expected for known login pages).
-5. **Monorepo structure**
-  - Go module is scoped to `api`, not root.
-  - Web and API are built/deployed as separate services coordinated with `docker-compose.yml`.
-6. **Development-first container setup**
-  - Web container runs Vite dev server (`npm run dev`) on port `3000`.
-  - This is optimized for local iteration, not final production serving.
 
 ## Suggestions for Improvement
 
 1. **Performance and scalability**
   - Add concurrency limits, optional caching for repeated URL checks, and benchmark parsing/link-check stages.
+2. **Render JavaScript-heavy pages**
+  - Use a headless browser (Chromium with Playwright) to render SPA pages and capture the generated DOM/HTML before analysis.
+  - Keep the current fast HTTP fetch path as a default and enable browser rendering as an optional mode for accuracy-sensitive use cases.
+3. **Vision-assisted login detection**
+  - Capture one or more browser screenshots during page rendering and analyze visual login cues (for example sign-in forms/buttons) in addition to HTML signals.
+  - Optionally call an AI vision service (such as an OpenAI-backed server) to improve detection accuracy on pages where DOM-based heuristics are ambiguous.
 
