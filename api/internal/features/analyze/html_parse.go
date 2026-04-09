@@ -18,8 +18,17 @@ func ParseHTML(pageURL *url.URL, body io.Reader) (analysisPayload, error) {
 }
 
 func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) {
+	payload, _, err := analyzeDocumentWithLinks(doc, pageURL)
+	if err != nil {
+		return analysisPayload{}, err
+	}
+	return payload, nil
+}
+
+func analyzeDocumentWithLinks(doc *html.Node, pageURL *url.URL) (analysisPayload, []string, error) {
 	var formStack []*FormMetadata
 	login := LoginMetadata{PageUrl: pageURL.String()}
+	linkTargets := make([]string, 0)
 
 	payload := analysisPayload{
 		HTMLVersion: "",
@@ -76,6 +85,9 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 				case isInaccessible:
 					payload.InaccessibleLinks++
 				}
+				if target, ok := resolveHTTPLinkTarget(pageURL, node); ok {
+					linkTargets = append(linkTargets, target)
+				}
 				login.AllLinks = append(login.AllLinks, linkMetadataFromAnchor(node))
 			case "form":
 				fm := &FormMetadata{Action: resolveFormAction(pageURL, node)}
@@ -124,7 +136,7 @@ func analyzeDocument(doc *html.Node, pageURL *url.URL) (analysisPayload, error) 
 	payload.LoginScore = score
 	payload.LoginReason = reason
 	payload.HasLoginForm = score >= 70
-	return payload, nil
+	return payload, linkTargets, nil
 }
 
 func textContent(n *html.Node) string {
@@ -162,25 +174,41 @@ func htmlVersionFromDoctype(data string) string {
 }
 
 func classifyAnchorLink(pageURL *url.URL, node *html.Node) (bool, bool, bool) {
-	href := strings.TrimSpace(attrValue(node, "href"))
-	if href == "" {
-		return false, false, true
-	}
-	parsedHref, err := url.Parse(href)
-	if err != nil {
-		return false, false, true
-	}
-	absolute := pageURL.ResolveReference(parsedHref)
-	if absolute == nil {
-		return false, false, true
-	}
-	if absolute.Scheme != "http" && absolute.Scheme != "https" {
+	absolute, ok := resolveHTTPLinkTargetURL(pageURL, node)
+	if !ok {
 		return false, false, true
 	}
 	if strings.EqualFold(pageURL.Hostname(), absolute.Hostname()) {
 		return true, false, false
 	}
 	return false, true, false
+}
+
+func resolveHTTPLinkTarget(pageURL *url.URL, node *html.Node) (string, bool) {
+	absolute, ok := resolveHTTPLinkTargetURL(pageURL, node)
+	if !ok {
+		return "", false
+	}
+	return absolute.String(), true
+}
+
+func resolveHTTPLinkTargetURL(pageURL *url.URL, node *html.Node) (*url.URL, bool) {
+	href := strings.TrimSpace(attrValue(node, "href"))
+	if href == "" {
+		return nil, false
+	}
+	parsedHref, err := url.Parse(href)
+	if err != nil {
+		return nil, false
+	}
+	absolute := pageURL.ResolveReference(parsedHref)
+	if absolute == nil {
+		return nil, false
+	}
+	if absolute.Scheme != "http" && absolute.Scheme != "https" {
+		return nil, false
+	}
+	return absolute, true
 }
 
 func attrValue(node *html.Node, key string) string {

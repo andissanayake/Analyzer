@@ -93,8 +93,9 @@ These are the implementation assumptions/decisions made where requirements were 
 
 3. **Link accessibility counting approach**
 
-- The analyzer does not open/crawl each discovered link to verify whether it is truly broken.
-- `InaccessibleLinks` is currently derived from link validation/classification rules (for example empty, malformed, or unsupported `href` values).
+- The analyzer parses the HTML document once, collects resolvable HTTP/HTTPS link targets during that pass, and deduplicates them before checking accessibility.
+- Link checks are executed in parallel using a bounded worker pool (`LinkCheckWorkerCount`) with a per-link timeout (`LinkCheckTimeoutPerURL`).
+- `InaccessibleLinks` includes both links that are invalid at parse/classification time (for example empty or malformed `href`) and links that fail runtime accessibility checks (request error or non-2xx/3xx response).
 
 4. **Login page detection strategy**
 
